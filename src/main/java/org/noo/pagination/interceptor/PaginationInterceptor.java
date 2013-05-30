@@ -1,5 +1,6 @@
 package org.noo.pagination.interceptor;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.ibatis.executor.Executor;
 import org.apache.ibatis.mapping.BoundSql;
 import org.apache.ibatis.mapping.MappedStatement;
@@ -25,8 +26,9 @@ import java.util.Properties;
  * @version 1.0 2012-05-12 上午10:06
  * @since JDK 1.5
  */
-@Intercepts({@Signature(type = Executor.class, method = "query",
-        args = {MappedStatement.class, Object.class, RowBounds.class, ResultHandler.class})})
+@Intercepts({ @Signature(type = Executor.class, method = "query", args = {
+		MappedStatement.class, Object.class, RowBounds.class,
+		ResultHandler.class }) })
 public class PaginationInterceptor extends BaseInterceptor {
 
     private static final long serialVersionUID = 3576678797374122941L;
@@ -36,8 +38,11 @@ public class PaginationInterceptor extends BaseInterceptor {
 
 		final MappedStatement mappedStatement = (MappedStatement) invocation
 				.getArgs()[0];
+		boolean isNoPage = StringUtils.isNotEmpty(_NO_PAGING_PATTERN) ? true
+				: false;// true为存在不分页配置，flase为不存在
 		if (mappedStatement.getId().matches(_SQL_PATTERN)
-				|| mappedStatement.getId().matches(_NO_PAGING_PATTERN)) { // 拦截需要分页的SQL
+				|| (isNoPage ? mappedStatement.getId().matches(
+						_NO_PAGING_PATTERN) : false)) { // 拦截需要分页的SQL
 			Object parameter = invocation.getArgs()[1];
 			BoundSql boundSql = mappedStatement.getBoundSql(parameter);
 			String originalSql = boundSql.getSql().trim();
@@ -60,7 +65,13 @@ public class PaginationInterceptor extends BaseInterceptor {
 			}
 			// 后面用到了context的东东
 			if (page != null) {
-				if (!mappedStatement.getId().matches(_NO_PAGING_PATTERN) && mappedStatement.getId().matches(_SQL_PATTERN)) {
+				//1、存在不分页配置时、不匹配不分页规则且匹配分页规则时
+				//2、不存在分页配置时、匹配分页规则时
+				if ((isNoPage
+						&& !mappedStatement.getId().matches(_NO_PAGING_PATTERN) && mappedStatement
+						.getId().matches(_SQL_PATTERN))
+						|| (!isNoPage && mappedStatement.getId().matches(
+								_SQL_PATTERN))) {
 
 					int totPage = page.getTotalRows(); // 得到总记录数
 					if (totPage == 0) {
@@ -107,25 +118,26 @@ public class PaginationInterceptor extends BaseInterceptor {
         super.initProperties(properties);
     }
 
-    private MappedStatement copyFromMappedStatement(MappedStatement ms,
-                                                    SqlSource newSqlSource) {
-        MappedStatement.Builder builder = new MappedStatement.Builder(ms.getConfiguration(),
-                ms.getId(), newSqlSource, ms.getSqlCommandType());
-        builder.resource(ms.getResource());
-        builder.fetchSize(ms.getFetchSize());
-        builder.statementType(ms.getStatementType());
-        builder.keyGenerator(ms.getKeyGenerator());
-        if (ms.getKeyProperties() != null) {
-            for (String keyProperty : ms.getKeyProperties()) {
-                builder.keyProperty(keyProperty);
-            }
-        }
-        builder.timeout(ms.getTimeout());
-        builder.parameterMap(ms.getParameterMap());
-        builder.resultMaps(ms.getResultMaps());
-        builder.cache(ms.getCache());
-        return builder.build();
-    }
+	private MappedStatement copyFromMappedStatement(MappedStatement ms,
+			SqlSource newSqlSource) {
+		MappedStatement.Builder builder = new MappedStatement.Builder(
+				ms.getConfiguration(), ms.getId(), newSqlSource,
+				ms.getSqlCommandType());
+		builder.resource(ms.getResource());
+		builder.fetchSize(ms.getFetchSize());
+		builder.statementType(ms.getStatementType());
+		builder.keyGenerator(ms.getKeyGenerator());
+		if (ms.getKeyProperties() != null) {
+			for (String keyProperty : ms.getKeyProperties()) {
+				builder.keyProperty(keyProperty);
+			}
+		}
+		builder.timeout(ms.getTimeout());
+		builder.parameterMap(ms.getParameterMap());
+		builder.resultMaps(ms.getResultMaps());
+		builder.cache(ms.getCache());
+		return builder.build();
+	}
 
     public static class BoundSqlSqlSource implements SqlSource {
         BoundSql boundSql;
