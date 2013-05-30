@@ -34,14 +34,16 @@ public class PaginationInterceptor extends BaseInterceptor {
     @Override
     public Object intercept(Invocation invocation) throws Throwable {
 
-        final MappedStatement mappedStatement = (MappedStatement) invocation.getArgs()[0];
-        if (mappedStatement.getId().matches(_SQL_PATTERN)) { //拦截需要分页的SQL
-            Object parameter = invocation.getArgs()[1];
-            BoundSql boundSql = mappedStatement.getBoundSql(parameter);
-            String originalSql = boundSql.getSql().trim();
-            Object parameterObject = boundSql.getParameterObject();
-            if (boundSql.getSql() == null || "".equals(boundSql.getSql()))
-                return null;
+		final MappedStatement mappedStatement = (MappedStatement) invocation
+				.getArgs()[0];
+		if (mappedStatement.getId().matches(_SQL_PATTERN)
+				|| mappedStatement.getId().matches(_NO_PAGING_PATTERN)) { // 拦截需要分页的SQL
+			Object parameter = invocation.getArgs()[1];
+			BoundSql boundSql = mappedStatement.getBoundSql(parameter);
+			String originalSql = boundSql.getSql().trim();
+			Object parameterObject = boundSql.getParameterObject();
+			if (boundSql.getSql() == null || "".equals(boundSql.getSql()))
+				return null;
 
             //分页参数--上下文传参
             Page page = null;
@@ -52,39 +54,48 @@ public class PaginationInterceptor extends BaseInterceptor {
                 page = convertParameter(parameterObject, page);
             }
 
+			// 分页参数--context参数里的Page传参
+			if (page == null) {
+				page = context;
+			}
+			// 后面用到了context的东东
+			if (page != null) {
+				if (!mappedStatement.getId().matches(_NO_PAGING_PATTERN) && mappedStatement.getId().matches(_SQL_PATTERN)) {
 
-            //分页参数--context参数里的Page传参
-            if (page == null) {
-                page = context;
-            }
-            //后面用到了context的东东
-            if (page != null) {
-                int totPage = page.getTotalRows();
-                //得到总记录数
-                if (totPage == 0) {
-                    Connection connection = mappedStatement.getConfiguration().getEnvironment().getDataSource().getConnection();
-                    totPage = SQLHelp.getCount(originalSql, connection, mappedStatement, parameterObject, boundSql);
-                }
+					int totPage = page.getTotalRows(); // 得到总记录数
+					if (totPage == 0) {
+						Connection connection = mappedStatement
+								.getConfiguration().getEnvironment()
+								.getDataSource().getConnection();
+						totPage = SQLHelp.getCount(originalSql, connection,
+								mappedStatement, parameterObject, boundSql);
+					}
 
-                //分页计算
-                page.init(totPage, page.getPageSize(), page.getCurrentPage());
+					// 分页计算
+					page.setTotalRows(totPage);
+				}
+			}
 
-                //分页查询 本地化对象 修改数据库注意修改实现
+			// 分页查询 本地化对象 修改数据库注意修改实现
 
-                String pageSql = SQLHelp.generatePageSql(originalSql, page, DIALECT);
-                if (log.isDebugEnabled()) {
-                    log.debug("分页SQL:" + pageSql);
-                }
-                invocation.getArgs()[2] = new RowBounds(RowBounds.NO_ROW_OFFSET, RowBounds.NO_ROW_LIMIT);
-                BoundSql newBoundSql = new BoundSql(mappedStatement.getConfiguration(), pageSql, boundSql.getParameterMappings(), boundSql.getParameterObject());
-                MappedStatement newMs = copyFromMappedStatement(mappedStatement, new BoundSqlSqlSource(newBoundSql));
+			String pageSql = SQLHelp
+					.generatePageSql(originalSql, page, DIALECT);
+			if (log.isDebugEnabled()) {
+				log.debug("分页SQL:" + pageSql);
+			}
+			invocation.getArgs()[2] = new RowBounds(RowBounds.NO_ROW_OFFSET,
+					RowBounds.NO_ROW_LIMIT);
+			BoundSql newBoundSql = new BoundSql(
+					mappedStatement.getConfiguration(), pageSql,
+					boundSql.getParameterMappings(),
+					boundSql.getParameterObject());
+			MappedStatement newMs = copyFromMappedStatement(mappedStatement,
+					new BoundSqlSqlSource(newBoundSql));
 
-                invocation.getArgs()[0] = newMs;
-            }
-        }
-        return invocation.proceed();
-    }
-
+			invocation.getArgs()[0] = newMs;
+		}
+		return invocation.proceed();
+	}
 
     @Override
     public Object plugin(Object target) {

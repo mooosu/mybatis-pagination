@@ -43,6 +43,7 @@ public abstract class BaseInterceptor implements Interceptor, Serializable {
      * 拦截的ID，在mapper中的id，可以匹配正则
      */
     protected String _SQL_PATTERN = "";
+    protected String _NO_PAGING_PATTERN = "";
     private static final long serialVersionUID = 4596430444388728543L;
 
     /**
@@ -102,6 +103,7 @@ public abstract class BaseInterceptor implements Interceptor, Serializable {
         }
 
         _SQL_PATTERN = p.getProperty("sqlPattern");
+        _NO_PAGING_PATTERN=p.getProperty("noPagingPattern");
         if (StringUtils.isEmpty(_SQL_PATTERN)) {
             try {
                 throw new PropertyException("sqlPattern property is not found!");

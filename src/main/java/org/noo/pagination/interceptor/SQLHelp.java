@@ -1,5 +1,11 @@
 package org.noo.pagination.interceptor;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.List;
+
 import org.apache.ibatis.builder.xml.dynamic.ForEachSqlNode;
 import org.apache.ibatis.executor.ErrorContext;
 import org.apache.ibatis.executor.ExecutorException;
@@ -15,11 +21,6 @@ import org.apache.ibatis.type.TypeHandlerRegistry;
 import org.noo.pagination.dialect.Dialect;
 import org.noo.pagination.page.Page;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.List;
 
 /**
  * <p>
@@ -95,7 +96,18 @@ public class SQLHelp {
     public static int getCount(final String sql, final Connection connection,
                                final MappedStatement mappedStatement, final Object parameterObject,
                                final BoundSql boundSql) throws SQLException {
-        final String countSql = "select count(1) from (" + sql + ") as tmp_count";
+    	String convertSql=sql.replaceAll("\\s+", " ");
+    	String countSql="";
+    	String []order_after=null;
+    	if (convertSql.toUpperCase().lastIndexOf("ORDER ")!=-1) {
+    		order_after=sql.substring(sql.toUpperCase().lastIndexOf("ORDER "),sql.length()-1).split(" ");
+    	}
+    	if (convertSql.toUpperCase().lastIndexOf("ORDER ")==-1 ||(order_after!=null && order_after.length > 4)) {
+    		countSql = "SELECT COUNT(1) "+convertSql.substring(convertSql.toUpperCase().indexOf(" FROM"));
+		}else{
+			countSql = "SELECT COUNT(1) "+convertSql.substring(convertSql.toUpperCase().indexOf(" FROM"),convertSql.toUpperCase().lastIndexOf("ORDER "));
+		}
+    	
         PreparedStatement countStmt = null;
         ResultSet rs = null;
         try {
@@ -116,6 +128,9 @@ public class SQLHelp {
             if (countStmt != null) {
                 countStmt.close();
             }
+			if (connection !=null){
+				connection.close();
+			}
         }
     }
 

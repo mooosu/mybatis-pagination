@@ -8,12 +8,16 @@
         <plugin interceptor="org.noo.dialect.interceptor.PaginationInterceptor">
               <property name="dialectClass" value="org.noo.pagination.dialect.db.MySQLDialect"/>
               <property name="sqlPattern" value=".*findAll.*"/>
+              <property name="noPagingPattern" value=".*NoPage.*" />
         </plugin>
     </plugins>
 
 * 第一个属性 `dialectClass`，方言实现类，需要实现`org.noo.pagination.dialect.Dialect` 接口
 * 第二个属性`sqlPattern`表示插件需要拦截的SQL ID，为正则表达式。
 	* 例如`.*findAll.*` 表示拦截 包含 findAll 的查询sql
+* 第三个属性`sqlPattern`表示插件需要拦截的非分页SQL ID，为正则表达式。
+  * 例如`.*NoPage.*` 表示拦截 包含 NoPage 的查询sql
+
 
 ### Sql Mapper配置
 示例
