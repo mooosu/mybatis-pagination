@@ -221,6 +221,8 @@ public class Pagination implements Page {
 
     @Override
     public void setTotalRows(int i) {
-        totalRows = i;
+    	//weijiyong：如果不自行查询总数，在设置完之后进行一次初始化分页
+    	totalRows = i;
+    	init(i, pageSize,currentPage);
     }
 }
